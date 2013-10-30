@@ -22,3 +22,43 @@ distance <- function(pt1,pt2){
   
 }
 
+zip_distance <- function(zip1,zip2,data=zipcode){
+	# returns the distance in km between two zip centroids
+	
+	pt1 <- as.numeric(data[data$zip==zip1,4:5])
+	pt2 <- as.numeric(data[data$zip==zip2,4:5])
+	return(distance(pt1,pt2))
+	}
+	
+##################################################
+######### Create Merchant ZIP Codes ##############
+##################################################
+
+install.packages("RMySQL") 
+library(RMySQL)
+drv <- dbDriver("MySQL")
+mydb <- dbConnect(drv, user='marcos', password='marcos', dbname='mysql', host='128.173.212.125')
+
+dbListTables(mydb)
+relevant_merchants <- dbGetQuery(mydb, "SELECT distinct merchant_code from mysql.SMC_Data")
+
+table_names <- dbListTables(mydb)[(2:25)[-7]]
+
+merchant_zips <- NULL
+
+for(i in 1:length(table_names)){
+	
+	tmp_table <- table_names[i]
+	SQL_command <- paste("SELECT distinct merchant_zip5, merchant_code from mysql.", tmp_table," where merchant_code in ('M1008','M1707','M1883','M2168','M2203','M2493','M3123','M3126','M3172','M3342','M3437','M3456','M382','M3868') group by merchant_code", sep="")
+	
+	merchant_zips <- unique(rbind(merchant_zips,dbGetQuery(mydb,SQL_command)))
+	print(i)
+	
+	}
+	
+
+dbRemoveTable(mydb,'relevant_merchant_zips')
+dbWriteTable(mydb,'relevant_merchant_zips',merchant_zips[order(merchant_zips[,2]),],row.names=FALSE)
+
+dbClearResult(dbListResults(mydb)[[1]])
+dbDisconnect(mydb)
