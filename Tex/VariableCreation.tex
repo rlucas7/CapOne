@@ -13,16 +13,14 @@
 \section{Variable Ideas}
 
 \subsection{General Customer Info}
-\begin{itemize}
-\item Whether the customer purchases online or not (binary 0-1)
-\item Proportion of purchases customer makes online ($p \in [0,1]$ )
+\begin{itemize} 
+\item Proportion of purchases customer makes online ($p \in [0,1]$ ) \ac{SQL code scripted in VarCreation.R}
 \item Customer online transaction count for each industry name (discrete, numeric) -- might purchase shoes online but not gasoline or groceries.
 \item Customer transaction count for each industry name (discrete, numeric) -- might not have a car and not need to purchase gas.
-\item Total transactions  (discrete, numeric)  \ac{Important as Build data sets only contain high frequency users}.
+\item Total transactions  (discrete, numeric) \ac{SQL code scripted in VarCreation.R}  \ac{Important as Build data sets only contain high frequency users}.
 \item Home zip code (character) (also used for customer-merchant specifics).
 \item Shopping zip codes (list - character) (zip codes where brick-and-mortar purchases are made).
 \item Transactions in last XX months (discrete, numeric) (identify inactive cards/users)
-\item Seasonality Holiday indicators and/or holiday intervals as we are graded on July - August
 \item whether they shop at one zipcode only ( maybe 2-3 neighboring zipcode). (this can be used to cluster customers (mobility))
 \end{itemize}
 
