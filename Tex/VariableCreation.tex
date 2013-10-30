@@ -16,18 +16,18 @@
 \begin{itemize} 
 \item Proportion of purchases customer makes online ($p \in [0,1]$ ) \ac{SQL code scripted in VarCreation.R}
 \item Customer online transaction count for each industry name (discrete, numeric) -- might purchase shoes online but not gasoline or groceries.
-\item Customer transaction count for each industry name (discrete, numeric) -- might not have a car and not need to purchase gas.
+\item Customer transaction count for each industry name (discrete, numeric) -- might not have a car and not need to purchase gas. \ac{SQL code scripted in VarCreation.R}
 \item Total transactions  (discrete, numeric) \ac{SQL code scripted in VarCreation.R}  \ac{Important as Build data sets only contain high frequency users}.
 \item Home zip code (character) (also used for customer-merchant specifics).
 \item Shopping zip codes (list - character) (zip codes where brick-and-mortar purchases are made).
-\item Transactions in last XX months (discrete, numeric) (identify inactive cards/users)
-\item whether they shop at one zipcode only ( maybe 2-3 neighboring zipcode). (this can be used to cluster customers (mobility))
+\item Transactions in last XX months (discrete, numeric) (identify inactive cards/users) \ac{SQL code scripted in VarCreation.R for last 3 months}
+\item whether they shop at one zipcode only ( maybe 2-3 neighboring zipcode). (this can be used to cluster customers (mobility)) \ac{SQL Code scripted in VarCreation.R}
+\item Number of merchants customer shopped at \ac{SQL Code scripted in VarCreation.R}
 \end{itemize}
 
 \subsection{Merchant Info - intermediate step}
 \begin{itemize}
-\item All info from merchant metrics \ac{it is not obvious to me how merchant metrics would be incorporated into a tree-like structure...}
-\item Transactions in last XX months (discrete,numeric) (identify inactive cards/users)
+\item Merchant Zip Codes for all locations 
 \end{itemize}
 
 \subsection{Customer-Merchant Specifics}
