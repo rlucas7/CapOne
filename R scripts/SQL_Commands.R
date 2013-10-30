@@ -20,5 +20,12 @@ merchant_type <- dbGetQuery(mydb, "SELECT distinct Industry_Name, merchant_code 
 merchant_type2 <- dbGetQuery(mydb, "SELECT distinct Industry_Name, merchant_code from mysql.cap1_disk1_build_auth_M155 where merchant_code 
                 in ('M1008','M1707','M1883','M2168','M2203','M2493','M3123','M3126','M3172','M3342','M3437','M3456','M382','M3868')")
 
+<<<<<<< HEAD
+=======
+d_merchant <- dbGetQuery(mydb, "SELECT distinct merchant_code from mysql.cap1_disk1_build_auth_M155")
+
+
+
+>>>>>>> dbd1ab220edbb379de8e6783a742bac87cd9181b
 dbDisconnect(mydb)
 
