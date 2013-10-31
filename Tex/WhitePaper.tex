@@ -21,7 +21,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-  \title{\bf Capital One White Page}
+  \title{\bf \emph{What's in your Wallet? Lots of receipts.}}
   \author[1]{Marcos Carzolio}
   \author[1]{Andy Hoegh}
   \author[1]{Xinran Hu}
@@ -49,33 +49,6 @@ abstract here....
 \newcommand{\mc}[1]{[{\color{red}\ Marcos Says: {\tt #1}}]}
 \newcommand{\yc}[1]{[{\color{red}\ Yuhyun Says: {\tt #1}}]}
 
-\section{Overview of Solution} 
-Our solution is based on...  TEST TEST
-\subsection{VP Questions}
-\begin{enumerate}
-\item What defines a relevant merchant for a customer?
-\item How does this tool support the business team's objective for the program?
-\item How would you educate your business partners on the value the tool provides?
-\item How might you evolve your product over time?
-\item What other strategies could your tool support for the credit card or bank business?
-\end{enumerate}
-
-\subsection{Model Considerations}
-\begin{enumerate}
-\item Spending patterns and preferences vary from customer to customer as well as by location, size of household, income level, ect...
-\item Merchant attributes and merchandise attributes play a large role - some merchants are visited infrequently (discretionary / luxury purchases) while others are visited on a regular basis (coffee shops)
-\item Past spend is a great predictor of future spend, but merchants already have this information and identifying previous spenders is not their priority
-\item It is imperative to ensure that our business partners understand our solution, how it adds value and its limitations
-\end{enumerate}
-
-\subsection{Model Considerations}
-\begin{enumerate}
-\item Customer receives offer and redeems one $\rightarrow +\$5$
-\item Customer receives offer and doesn't redeem $\rightarrow -\$3$
-\item No offer extended $\rightarrow -\$1$
-\end{enumerate}
-
-
 \subsection{Judging}
 \begin{enumerate}
 \item Performance of the statistical model evaluated on a validation sample.
@@ -84,15 +57,59 @@ Our solution is based on...  TEST TEST
 \end {enumerate}
 Teams will score up to 20 points in each category for a maximum score of 60 points, top 5 teams are semi-finalists.
 \ac{Get to Work!}
+\section{Overview of Solution} 
+Predicting human behavior is notoriously challenging.  However, in this ``big data'' era massive amounts of information available through publicly and privately collected data sources such as social media and transaction histories make this problem more manageable.  Without additionally processing these massive, and often instructed data sets are computationally prohibitive, requiring feature extraction that retains signals and filters noise.  
 
-\section{Data Preparation}
-Much effort was taken to extract meaningful features from the data set.
-\section{Model Building/Selection}
+Given the negative press surrounding government intrusion and general privacy concerns with data, there are often negative connotations with the acquisition and use of this information.  It is important to state that intelligent use of big data can benefit all involved parties.  In particular within the context of transaction data, customers can be provided with coupons for discounts at merchants  which also provides additional business for merchants and instills customer loyalty through the use of electronic coupon's on a credit card.  In this work we detail our strategy for leveraging historical transaction summaries to determining where a customer may shop in the future.  The key elements of our four step process are summarized below. 
+\subsection*{Feature Extraction} 
+In the raw form transaction data does not lend itself to predictive modeling.  The key is reducing the data while obtaining information relevant to where a customer may shop in the future.
+\subsection*{Customer Segmentation:} 
+One main challenge presented in this competition is the inclusion of small frequency customers in the validation set, without fifteen months of complete transaction histories for the same type of customer.  This necessitated a different type of model for these customers.  Additionally, the transaction records indicated other clusters of customers that could be grouped into a single model, providing more accurate predictions.
+\subsection*{Predictive Models:} 
+For each segmentation of customers, typical off the shelf classification methods were used to evaluate performance.  Logistic lasso, CART, Random Forest, and boosting.  However, most of these are designed to compute the probability of shopping at a merchant in a univariate manner.  While in reality, there may be structure between merchants such that these probabilities are correlated.  This could be remedied with a multivariate probit model \ac{ Quick R implementation?  maybe run the probabilities through a copula to infer correlation structure?}
+\subsection*{Optimal Decision:} 
+Statistical decision theory can be invoked to design the optimal decision for each customer.
+\section{Feature Extraction}
+Much effort was taken to extract meaningful features from the data set.  A complete list of variables are contained in Table~\ref{tab:vars}.
+
+\begin{table}[h!]
+\caption{Created Variables}
+\begin{center}
+\begin{tabular}{|c|c|}
+test & test
+\end{tabular}
+\end{center}
+\label{tab:vars}
+\end{table}%
+
+\section{Customer Segmentation}
+
+\section{Predictive Modeling}
 Several off the shelf classification tools were initially used, then they were refined to achieve better results in this case.
-\section{Model Use Strategy}
-Separate models are constructed for each merchant, then using a specified loss function a decision is made on whether coupons should be issued.  Conditional on a coupon being issued the set of coupons most likely to result in coupon use are issued \ac{There may be structure between the merchants such that the optimal strategy may not be to issue the coupons to the merchants with the highest marginal probabilities} 
-\section{Conclusions/Other Potential Opportunities}
-While the problem is framed through the lens of giving a customer a coupon, the actual modeling scenario is slightly different.  The assumed response of a coupon would be a behavior adjustment that may nudge a customer in a direction they wouldn't otherwise go.  
+\section{Optimal Decision}
+The current incentive structure favors issuing coupons at merchants with higher frequency of transactions without regard for purchase price.  
+
+Separate models are constructed for each merchant, then using a specified loss function a decision is made on whether coupons should be issued.  Conditional on a coupon being issued the set of coupons most likely to result in coupon use are issued \ac{There may be structure between the merchants such that the optimal strategy may not be to issue the coupons to the merchants with the highest marginal probabilities} \\
+
+A loss function is presented in the competition.  
+\begin{eqnarray*}
+L(\delta,C_i) &=& 3 \text {  offer suite issued with no redemption}\\
+&=& -5 * n \text{  offer suite issued with n coupons redeemed}\\
+&=& 1 \text{  no offer suite extended}
+\end{eqnarray*}
+In order to make optimal decision in regards to issuing coupons for each customer, risk needs to be computed
+
+
+\section{Discussion}
+While this algorithm is specifically tuned for the merchants specified in the validation test set, the implementation could easily be applied to any merchant.  One subtle, but important aspect about this competition is that the models are designed to predict where a customer will shop in upcoming months -- without any influence from an issued coupon.  Merchants are not as interested in providing discounts to frequent customers, but would like to identify new sets of customers.  One feature has been constructed to identify a merchant's competitor's customers.  The predictive power of this variable is minimal in the current scenario; however, issuing a coupon would cause a behavioral adjustment that may cause a customer to visit a merchant they ordinarily would not.  The current model provides a prediction for a baseline response unaffected by a coupon.  An interesting evolution that would be particularly interesting for Capital One's business partners would be to conduct an experiment be issuing coupons to customers in order to model behavioral change.    The resultant summary could show the difference in probability of a customer (or more likely a segmentation of customers)  visiting a merchant after being issued a coupon.  In a similar vein our group discussed the concept of a shared merchant that could be analyzed in the same framework as transaction data (e.g. the beer and diapers example).  As a concrete example, perhaps users who shop at Target also often shop at Pier 1.
+
+
+
+
+While the problem is framed through the lens of giving a customer a coupon, the actual modeling scenario is slightly different.  The assumed response of a coupon would be a behavior adjustment that may nudge a customer in a direction they wouldn't otherwise go. 
+
+\subsection{Merchant Value}
+Create a model to jointly estimate the probability of shopping at a merchant and the expected value spent.
 \end{document}
 
 
