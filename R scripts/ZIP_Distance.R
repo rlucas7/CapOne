@@ -27,6 +27,7 @@ zip_distance <- function(zip1,zip2,data=zipcode){
 	
 	pt1 <- as.numeric(data[data$zip==zip1,4:5])
 	pt2 <- as.numeric(data[data$zip==zip2,4:5])
+	system("say Marcos is a dud")
 	return(distance(pt1,pt2))
 	}
 	
