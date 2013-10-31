@@ -9,51 +9,68 @@
 
 
 
+
 install.packages("RMySQL") 
 library(RMySQL)
 drv <- dbDriver("MySQL")
 mydb <- dbConnect(drv, user='andy', password='andy', dbname='mysql', host='128.173.212.125')
 dbListTables(mydb)
-dbListTables(mydb, "cap1 disk1 build_auth_155")
-relevant_ids <- dbGetQuery(mydb, "SELECT count(distinct acct_id_code) from mysql.SMC_Data")
-relevant_merchants <- dbGetQuery(mydb, "SELECT distinct merchant_code from mysql.SMC_Data")
-merchant_metrics <- dbGetQuery(mydb, "SELECT * from mysql.cap1_disk1_merchant_metrics where merchant_code in 
-                  ('M1008','M1707','M1883','M2168','M3868')")
-merchant_type <- dbGetQuery(mydb, "SELECT distinct Industry_Name, merchant_code from mysql.cap1_disk4_validation_auth where merchant_code 
-                in ('M1008','M1707','M1883','M2168','M2203','M2493','M3123','M3126','M3172','M3342','M3437','M3456','M382','M3868')")
 
-merchant_type2 <- dbGetQuery(mydb, "SELECT distinct Industry_Name, merchant_code from mysql.cap1_disk1_build_auth_M155 where merchant_code 
-                in ('M1008','M1707','M1883','M2168','M2203','M2493','M3123','M3126','M3172','M3342','M3437','M3456','M382','M3868')")
+#first get a list of all unique account_ids, 1 for each account. make a table of this in SQL 
 
-dbDisconnect(mydb)
+table_names<-c("cap1_disk1_build_auth_M155",  "cap1_disk1_build_auth_M216" , "cap1_disk1_build_auth_M218" , "cap1_disk1_build_auth_M274",  "cap1_disk1_build_auth_M340",  "cap1_disk1_build_auth_M410",   "cap1_disk2_build_auth_M1108", "cap1_disk2_build_auth_M1369", "cap1_disk2_build_auth_M1444" ,"cap1_disk2_build_auth_M1600","cap1_disk2_build_auth_M1739", "cap1_disk2_build_auth_M753",  "cap1_disk2_build_auth_M919" , "cap1_disk3_build_auth_M2024", "cap1_disk3_build_auth_M2042" ,"cap1_disk3_build_auth_M2198","cap1_disk3_build_auth_M2295", "cap1_disk3_build_auth_M2352" ,"cap1_disk3_build_auth_M2563", "cap1_disk3_build_auth_M3497" ,"cap1_disk4_build_auth_M3589" ,"cap1_disk4_build_auth_M3841","cap1_disk4_build_auth_M3892")
+length(table_names)
 
-###===========================================
+mydb <- dbConnect(drv, user='andy', password='andy', dbname='mysql', host='128.173.212.125')
 
-#first get a list of all account_ids 
 
-#then scroll through the 23 databases until the first time you find 
+ 	# for(i in 1:23){
+		# # code to iterate over tables...
+		# fuck_shit<-table_names[i]
+		# table<-dbGetQuery(mydb, paste("SELECT distinct acct_id_code FROM",fuck_shit ) )
+		
+		# if(i==1){ # first case, here we need to initialize structure 
+		# distinct_accounts<-table	
+		# }else{ # here just bind the results together
+		# distinct_accounts<-rbind(table, distinct_accounts)			
+		# }
 
-#the database, then output that data to the file and loop over the 
+	# }
+# dbWriteTable(mydb, name="distinct_accounts", value=distinct_accounts)	
 
-# the customers in the separate customer table. 
 
+#then scroll through the 23 databases until the first time you find the distinct account in
+#the database, then output that data to the dataframe and loop over the distinct accounts 
+
+# temp file comment this line out after ur done...
+distinct_accounts<-dbGetQuery(mydb, paste("SELECT * FROM distinct_accounts"))
+distinct_accounts<-distinct_accounts[,2]
+
+
+
+for(i in 1:(length(distinct_accounts)) ){
+	b_flag<-TRUE
+	j<-1
+	while(b_flag){
+		if( j >23){# end of the string  
+			b_flag<-FALSE
+			}else{
+				output<-dbGetQuery(mydb, paste("SELECT * FROM",table_names[j], "WHERE acct_id_code =   " , distinct_accounts[i], " " ))
+				final_data<-0
+				if(length(output)>0){ # append data
+					final_data<-rbind(final_data, output)
+					b_flag<-FALSE
+					}else{ # there was no match in that file, simple move ahead
+							j<-j+1
+					}# end of inner else condition
+				
+			}# end of outer else condition
+	}# end of while loop 
+#	system("say dude Im done")
+} # end of for loop
+#create the customers in a separate customer table. 
+
+system("say dude Im done")
 
 
 ####=========================================
-
-# for loop that creates the tables in Razor SQL 
-
-table_names<-c("M155","M216","M218","M274","M340", "M410", "M1108", "M1369","M1444", "M1600", "M1739","M753", "M919", "M2024","M2042", "M2198", "M2295", "M2352", "M2563", "M3497", "M3589", "M3841")
-
-for(i in 1:14){
-	# code to iterate over merchants...
-	
-	for(1:23){
-		# code to iterate over tables...
-		fuck_shit<-paste("cap1_disk1_build_auth_", table_names[i],sep="")
-		dbGetQuery(mydb, paste("SELECT * FROM",fuck_shit, "WHERE merchant_code=''") )
-	}
-	
-	
-	
-}
