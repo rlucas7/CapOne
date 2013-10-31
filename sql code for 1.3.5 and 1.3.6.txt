@@ -1,0 +1,14 @@
+CREATE TABLE test
+(
+SELECT acct_id_code, COUNT(*) as trnx_count
+FROM cap1_disk1_build_auth_M155
+where Industry_Name="Book Stores" /* AND merchant_zip5=" " */
+Group By acct_id_code
+)
+;
+Alter table test ADD shopped_else int
+;
+Update test SET shopped_else=1
+;
+Update test SET shopped_else=0
+where trnx_count=1
