@@ -60,14 +60,15 @@ Raw transaction data does not lend itself directly to predictive modeling.  This
 \subsection*{Customer Segmentation:} 
 In an ideal scenario the target customers would be drawn the same population; hence, allowing a single modeling framework to be applied to the entire set of customers.  This is clearly not the case with the data set presented in this competition.  The transaction records indicated  heterogenous segments of customers.  So a model based clustering approach was used to segment the customers, then a separate model was applied to each segment.  This makes intuitive sense and results in more accurate predictions. 
 
-\subsection*{Predictive Models:} 
+\subsection*{Model Building:} 
 For each segmentation of customers, a collection of well established classification tools were used to evaluate performance.  Given that our feature set contained so many variables we favored methods that encourage some sparsity in the covariate space, with the random forest algorithm ultimately being selected.  For our response, we extract whether each customer shops at a specified merchant during the three month period for which predictions are needed.  It should be noted that these models are computing the probability of shopping at a merchant in a univariate manner.  This has the built in assumption that the probabilities of visiting separate merchants are independent.  To lessen the correlation structure, indicator variables for shopping at other target merchants are introduced.
 
-\subsection*{Optimal Decision:} 
+\subsection*{Model Use:} 
 Given the goal of the project is to make a decision on issuing coupons for each customer, statistical decision theory prove useful when determining the optimal decision for each customer.  The question boils down to the expected return for issuing coupons to a customer.  The mathematical details are provided later on, but five coupons are issued if the expected `gain' is greater than the \$1 penalty for not issuing a coupon.\\
 
 The following sections will provided additional details on each of the four components that go into our modeling framework.  Then a discussion section will follow identify some closing thoughts and touching on some ideas for future work in this area. 
-\section{Feature Extraction}
+\section{Data Preparation}
+\subsection{Feature Extraction}
 Much effort was taken to extract meaningful features from the transaction level data.  The key is reducing the data while obtaining information relevant to where a customer may shop in the future.  All variables are constructed on the twelve month period, with the exception of small frequency customers.  These customers have variables constructed on only nine months as three are held out of the validation set for model citing.  A list of customer specific variables are shown below.
 \small
 \begin{itemize}
@@ -89,7 +90,7 @@ These variables are also used in the cluster segmentation scheme.   The customer
 \end{itemize}
 \normalsize
 
-\section{Customer Segmentation}
+\subsection{Customer Segmentation}
 There are two reasons clustering is both useful and necessary in this scenario.  First, as described there is heterogeneity in the customers - suggesting separate models for intuitive and predictive advantages.  The second is the inclusion of low frequency customers in the validation set.  Fitting a model on customers with high credit card use and then applying it to these low use customers would be a classic interpolation error.
 
 To differentiate heterogenous groups, K-means clustering is applied to three constructed variables: total transactions, number of merchants, number of zip codes shopped in.  The goal is to identify homogenous groups of shoppers so that their behavior can be modeled in the same framework.
@@ -102,12 +103,12 @@ Figure~\ref{fig:cluster} provides a visual of the constructed clusters.  These c
 
 The second reason for clustering is the inclusion of small frequency customers with less than 360 annual transactions in the validation set.  These customers clearly exhibit different spending habits than the high frequency customers that are provided in the sample test sets.  This necessitated a bit of creative thinking to develop a different type of model for these customers.  There were three options: use the models constructed on high frequency customers, do not issue coupons to these customers, or use the 12 months of data to learn about these customers.  Given that options one and two were unsatisfactory, we choose option three.  While not a perfect scenario, it was the best option. 
 
-\section{Predictive Modeling}
+\section{Model Building}
 The random forest algorithm is an ensemble classifier that builds a series of uncorrelated trees which are combined to create a stronger classifier.  Each tree is constructed on a randomly selected subset of data and predictors.  In many problems of this type, the goal is accuracy in the classification itself.  In this case, the importance lies in accurately estimating the class probabilities.  Class probabilities of a random forest algorithm are obtained as the proportion of trees that make a specification classification.
 
 As mentioned earlier, these models assume independence in the probabilities of shopping at merchants.  In reality, there is likely some correlation.  For computational and actual time constraints we estimated the probabilities separately, but included variables denoting whether a customer shopped at another target merchant in our model.  These will adjust the probabilities accordingly.  A more complete solution could be achieved through a multivariate probit model or using a copula.
  
-\section{Optimal Decision}
+\section{Model Use}
 Given the probabilities of a customer shopping at a merchant and and the specified loss function:  
 \begin{eqnarray*}
 L(\delta,C_i) &=& 3 \text {  offer suite issued with no redemption}\\
