@@ -103,62 +103,35 @@ To differentiate heterogenous groups, K-means clustering is applied to three con
 Figure~\ref{fig:cluster} provides a visual of the constructed clusters.  These clusters break apart customers not only by total transactions, but also take into account the diversity of stores and locales a credit card is used in.
 
 
-%%%Cluster numbers are ordered by the trxn Freq. and cluster labels in Table 2 and Table 1 are same .
-%\begin{table}[h!b!p!]\footnotesize
-%\centering
-%\vspace{10pt}
-%\caption{Summary  for Shopper Segmentations from K means clustering using the sample test sets.}
-%\begin{tabular}{l*{5}{c}r}
-%\hline
-%Cluster & Number of Customers & Avg. Transaction Frequency & Avg. Number of ZIP &  Avg. Number of Merchant \\
-%\hline
-%1	&14797	&465 	&33 &	39\\
-%2	&30261	&472 	&65	&57\\
-%3	&22981	&513 	&92 &	73\\
-%4	&9281	&574 	&3 	&70 \\
-%5	&16014	&721 	&118 &	92\\
-%6	&14670	&766 	&75 &	72\\
-%7	&7493	&1037	&152 &	117\\
-%8	&3126	&1074	&2 	&108\\
-%9	&8391	&1080	&103 &	97\\
-%10	&3116	&1568	&170 &	137\\
-%\hline
-%\end{tabular}\\
-%\label{table1}
-%\end{table}
-
-%\begin{table}[h!b!p!]\footnotesize
-%\centering
-%\vspace{10pt}
-%\caption{Summary for customers in the validation set classified into the predefined clusters from K-means clustering }
-%\begin{tabular}{l*{5}{c}r}
-%\hline
-%Cluster & Number of Customers & Avg. Transaction Frequency & Avg. Number of ZIP &  Avg. Number of Merchant \\
-%\hline
-%1	&9513&	170& 	35 	&28\\
-%2	&1925&	351 &	61 	&55\\
-%3	&838&	458 &	94 &68\\
-%4	&39	&473 	&27 	&54\\
-%5	&433&	723 &	119 &	91\\
-%6	&391&	738 &	72 	&74\\
-%7	&165&	1068 &	154 &	112\\
-%8	&233&	1073 &	98 	&96\\
-%9	&62	&1565 	&166 	&132\\
-%10	&1	&2183 	&6 &	2\\
-%\hline
-%\end{tabular}\\
-%\label{table1}
-%\end{table}
+%%Cluster numbers are ordered by the trxn Freq. and cluster labels in Table 2 and Table 1 are same .
+\begin{table}[h!]\footnotesize
+\centering
+\vspace{10pt}
+\caption{Shopper Segmentations from K means clustering}
+\begin{tabular}{l*{5}{c}r}
+\hline
+Cluster & Cluster Color & \# Customers & Avg. Transaction Freq & Avg. \# of ZIP &  Avg. \# of Merchant \\
+\hline
+1	& blue&14797	&465 	&33 &	39\\
+2	&blue&30261	&472 	&65	&57\\
+3	&blue&22981	&513 	&92 &	73\\
+4	&blue&9281	&574 	&3 	&70 \\
+5	&blue&16014	&721 	&118 &	92\\
+6	&blue&14670	&766 	&75 &	72\\
+\hline
+\end{tabular}\\
+\label{table1}
+\end{table}
 The second reason for clustering is the inclusion of small frequency customers with less than 360 annual transactions in the validation set.  These customers clearly exhibit different spending habits than the high frequency customers that are provided in the sample test sets.  This necessitated a bit of creative thinking to develop a different type of model for these customers.  There were three options: use the models constructed on high frequency customers, do not issue coupons to these customers, or use the 12 months of data to learn about these customers.  Given that options one and two were unsatisfactory, we choose option three.  While not a perfect scenario, it was the best option.   The idea is to use the twelve months of data to learn how these customers behave.  The choices were either use data from July - March to predict April - June \emph{or}  October - June to predict back in time for July - September.  With additional time, we would like to combine these two models in an intelligent way, but given the time constraints we choose to predict for the same time frame as the required output (July - September).  Our thought was that the seasonal patterns would be strong enough that it would be beneficial to fit the model during the same months.
 
 \section{Model Building}
-The random forest algorithm is an ensemble classifier that builds a series of uncorrelated trees which are combined to create a stronger classifier.  Each tree is constructed on a randomly selected subset of data and predictors.  In many problems of this type, the goal is accuracy in the classification itself.  In this case, the importance lies in accurately estimating the class probabilities.  Class probabilities of a random forest algorithm are obtained as the proportion of trees that make a specification classification.
+The random forest algorithm is an ensemble classifier that builds a series of uncorrelated trees which are combined to create a stronger classifier.  Each tree is constructed on a randomly selected subset of data and predictors.  In many problems of this type, the goal is accuracy in the classification itself.  In this case, the importance lies in accurately estimating the class probabilities.  Class probabilities of a random forest algorithm are obtained as the proportion of trees that make a specification classification.  Part of the value in this modeling approach is random forest does variable selection itself - less influential features are not selected to construct trees.  Additionally, the additive nature of the trees doesn't impose structural assumptions on the relationships between variables.
 
 For the low frequency customers, a model is fit using the the nine months of data immediately following September 30th, to predict use during July - September.  This is backwards, in some sense, as we use transactions from after our target period; however, this was favorable to using a model based strictly on high use customers.  Then the predictions are made for July-September of the following year.
 
 As mentioned earlier, these models assume independence in the probabilities of shopping at merchants.  In reality, there is likely some correlation.  For computational and actual time constraints we estimated the probabilities separately, but included variables denoting whether a customer shopped at another target merchant in our model.  These will adjust the probabilities accordingly.  A more complete solution could be achieved through a multivariate probit model or using a copula.
 
-Our evaluations (on high frequency customers) showed good model results.  There would be several valid criteria to look at, but we considered the expected return and its association with the realized return.  This is conducted by removing sets of customers the model building step.  Then predictions can be made and compared to actual results.  For several runs, the expected and observed returns were very close to each - suggesting the probabilities computed with the random forest were valid.  The mean expected return was \$13.30.  This is not an expected return for all customers as the small use customers are expected to behave differently.
+Our evaluations (on high frequency customers) showed good model results.  There would be several valid criteria to look at, but we considered the expected return and its association with the realized return.  This is conducted by removing sets of customers the model building step.  Then predictions can be made and compared to actual results.  For several runs, the expected and observed returns were very close to each - suggesting the probabilities computed with the random forest were valid.  The mean expected return was \$13.30.  This is not an expected return for all customers as the small use customers would have a smaller return.
  
 \section{Model Use}
 Using statistical decision theory with the specified loss function an optimal strategy can be obtained for each customer.
@@ -177,7 +150,6 @@ where $P_i$ is the probability of $i$ coupons being redeemed.  If $E(return_{iss
 One subtle, but important aspect about this competition is that the models are designed to predict where a customer will shop in upcoming months -- without any influence from an issued coupon.  As the problem statement outlines, merchants are not as interested in providing discounts to frequent customers, but would like to identify new sets of customers.  Even though the target is customer behavior without a coupon, our framework includes features that to identify new customers.  One in particular is a variable identifying a merchant's competitor's customers - that is customers shopping at the same industry in the same zip code.  The predictive power of this variable is less than whether the customer has frequented the merchant in the past; however, in reality issuing a coupon would cause a behavioral adjustment that may cause a customer to visit a merchant they ordinarily would not.  An interesting evolution that would be particularly interesting for Capital One's business partners would be to conduct an experiment be issuing coupons to customers in order to model behavioral change.  The resultant summary could show the difference in probability of a customer (or more likely a segmentation of customers)  visiting a merchant after being issued a coupon.  This would be more valuable to a merchant, as issuing coupons to regular customers might actually be a net loss for the company - assuming discount on goods that would have been purchased anyway.  
 
 \end{document}
-
 
 
 

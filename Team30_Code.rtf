@@ -1,0 +1,905 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1138\cocoasubrtf510
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\margl1440\margr1440\vieww28600\viewh15100\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural
+
+\f0\fs24 \cf0 ################################################################################################################################\
+# varCreation_inR_forVal.R\
+# creates `X' matrix, given a datafile\
+# runtime: 25 minutes on macBook Pro per files\
+# 11.3.2013\
+################################################################################################################################\
+#read data\
+#library(reshape)\
+t=Sys.time()\
+\
+all <- read.csv("~/Desktop/M3841.csv")\
+head(all)\
+\
+file.out = "~/Desktop/X_M3841.csv"\
+################################################################################################################################\
+# FUNCTIONS\
+################################################################################################################################\
+in_zips_shop <- function(id,pairs,merchant_zips)\{\
+  merch_z = pairs[pairs$acct_id_code == id,]\
+  out = rep(0,14)\
+  for (i in 1:14)\{\
+    out[i] <-  as.numeric(sum(merch_z[,2] %in% merchant_zips[[i]]) >0)\
+  \}\
+  return(out)\
+\}\
+\
+in_zips <- function(zip,merchant_zips)\{\
+  out = rep(0,14)\
+  for (i in 1:14)\{\
+    out[i] <- as.numeric( zip %in% merchant_zips[[i]])\
+  \}\
+  return(out)\
+\}\
+\
+at_industry = function(id, transactions, industry)\{\
+  out=rep(0,14)\
+  by_id <- transactions[transactions$acct_id_code == id,]\
+  for (i in 1:14)\{\
+    out[i] <- as.numeric(dim(by_id[by_id$Industry_Name ==industry[i],])[1] >0)\
+  \}\
+  return(out)\
+\}\
+\
+at_industry_zip = function(id, transactions, industry,merchant_zips)\{\
+  out=rep(0,14)\
+  by_id <- transactions[transactions$acct_id_code == id,]\
+  for (i in 1:14)\{\
+    out[i] <- as.numeric(dim(by_id[by_id$Industry_Name ==industry[i] & (by_id$merchant_zip %in% merchant_zips[[i]]),])[1] >0)\
+  \}\
+  return(out)\
+\}\
+################################################################################################################################\
+# CREATE STATIC VARIABLES for VALIDATION SET\
+################################################################################################################################\
+s=Sys.time()\
+purchase_online <- aggregate(all$internet_trxn, by=list(all$acct_id_code), 'FUN' = mean)\
+colnames(purchase_online) <- c("acct_id_code","online_prob")\
+Sys.time()-s\
+\
+s=Sys.time()\
+# aggregate purchases by industry\
+tmp_industry <- aggregate(rep(1,dim(all)[1]), by=list(all$acct_id_code, as.character(all$Industry_Name)), 'FUN' = sum)\
+colnames(tmp_industry) = c('acct_id_code', 'Industry_Name','n')\
+industry_counts <- reshape(tmp_industry, v.names = "n", idvar = "acct_id_code", timevar= "Industry_Name",direction="wide",sep="_")\
+industry_counts[is.na(industry_counts)] <- 0\
+Sys.time()-s\
+\
+s=Sys.time()\
+#total number of purchases\
+freq_count <- aggregate(rep(1,dim(all)[1]), by=list(all$acct_id_code), 'FUN' = sum)\
+colnames(freq_count) <- c('acct_id_code','trans_freq')\
+Sys.time()-s\
+\
+s=Sys.time()\
+# number of purchases in previous 3 months\
+last3 <- subset(all, substr(all$trxn_date,3,5) %in% c('APR','MAY','JUN'))\
+freq_count_last3 <- aggregate(rep(1,dim(last3)[1]), by=list(last3$acct_id_code), 'FUN' = sum)\
+colnames(freq_count_last3) <- c('acct_id_code','freq_prev3')\
+Sys.time()-s\
+\
+# Number of Merchants and Merchant ZipCodes\
+num_zips <- aggregate(rep(1,dim(all)[1]), by=list(all$acct_id_code, as.character(all$merchant_zip)), 'FUN' = sum)\
+zip_count <- aggregate(rep(1,dim(num_zips)[1]),list(num_zips$Group.1),sum)\
+colnames(zip_count) =c('acct_id_code','Num_ZIP')\
+\
+num_merch <- aggregate(rep(1,dim(all)[1]), by=list(all$acct_id_code, as.character(all$merchant_code)), 'FUN' = sum)\
+merchant_count <- aggregate(rep(1,dim(num_merch)[1]),list(num_merch$Group.1),sum)\
+colnames(merchant_count) =c('acct_id_code','Num_Merchant')\
+\
+# aggregate purchases by industry\
+all_online <- subset(all, all$internet_trxn ==1)\
+tmp_industry_online <- aggregate(rep(1,dim(all_online)[1]), by=list(all_online$acct_id_code, as.character(all_online$Industry_Name)), 'FUN' = sum)\
+colnames(tmp_industry_online) = c('acct_id_code', 'Industry_Name','n_o')\
+industry_counts_online <- reshape(tmp_industry_online, v.names = "n_o", idvar = "acct_id_code", timevar= "Industry_Name",\
+                                  direction="wide",sep='_')\
+industry_counts_online[is.na(industry_counts_online)] <- 0\
+\
+# combine `static' variables\
+tmp <- merge_recurse(list(merchant_count, zip_count, freq_count_last3, freq_count, industry_counts, purchase_online, \
+                          industry_counts_online), by = "acct_id_code")\
+tmp.order <- tmp[order(tmp$acct_id_code),] # order by id code\
+tmp.order[is.na(tmp.order)] <- 0\
+static_X <- tmp.order\
+################################################################################################################################\
+# CREATE Merchant Specific VARIABLES for VALIDATION SET\
+################################################################################################################################\
+# Freq at Target Merchant\
+target_merchants <- c('M1008','M1707','M1883','M2168','M2203','M2493','M3123',\
+                      'M3126','M3172','M3342','M3437','M3456','M382','M3868')\
+at_merch <- all[all$merchant_code %in% target_merchants,]\
+\
+freq <- aggregate(rep(1,dim(at_merch)[1]),by=list(at_merch$acct_id_code,at_merch$merchant_code),sum)\
+colnames(freq)=c('acct_id_code','Merchant','Freq')\
+freq2 <- reshape(freq, v.names = "Freq", idvar = "acct_id_code", timevar= "Merchant",direction="wide",sep="_")\
+freq2[is.na(freq2)] <- 0\
+\
+# Live in same Zip as Merchant\
+for (i in target_merchants)\{\
+  small <- (subset(at_merch, at_merch$merchant_code ==i ))\
+  zips <-as.character(unique(as.character(small$merchant_zip5)))\
+  nam <- paste('z',i,sep="_") \
+  assign(nam, zips)\
+\}\
+merchant_zips =list(z_M1008,z_M1707,z_M1883,z_M2168,z_M2203,z_M2493,z_M3123,\
+                    z_M3126,z_M3172,z_M3342,z_M3437,z_M3456,z_M382,z_M3868)\
+small<-all[!duplicated(paste(all$acct_id_code,all$customer_zip5)),]\
+a<-strptime(small$trxn_date, '%d%B%Y')\
+bytime <- small[order(a,decreasing =T),]\
+customer_zips <- bytime[!duplicated(bytime$acct_id_code),] # retain most recent zip\
+live_inzip <- sapply(customer_zips$customer_zip5,in_zips, merchant_zips=merchant_zips)\
+live_inzip <- cbind(customer_zips$acct_id_code,t(live_inzip))\
+colnames(live_inzip)=c('acct_id_code','live_M1008','live_M1707','live_M1883','live_M2168','live_M2203','live_M2493',\
+                       'live_M3123','live_M3126','live_M3172','live_M3342','live_M3437','live_M3456','live_M382','live_M3868')\
+\
+# Shop in same Zip as Merchant\
+pairs <- unique(all[c("acct_id_code", "merchant_zip5")])\
+customers <- unique(pairs$acct_id_code)\
+shop_zip <- sapply(customers,in_zips_shop, pairs=pairs, merchant_zips=merchant_zips) # a bit slow (10 min)\
+shop_inzip <- cbind(customers,t(shop_zip))\
+colnames(shop_inzip)=c('acct_id_code','shop_M1008','shop_M1707','shop_M1883','shop_M2168','shop_M2203','shop_M2493',\
+                       'shop_M3123','shop_M3126','shop_M3172','shop_M3342','shop_M3437','shop_M3456','shop_M382','shop_M3868')\
+\
+# Shop at industry\
+industry <- at_merch[!duplicated(at_merch$merchant_code),]\
+industry <- industry$Industry_Name\
+industries_only <- all[all$Industry_Name %in% industry,]\
+industries_only_unique <- unique(industries_only[c("acct_id_code", "Industry_Name")])\
+s=Sys.time()\
+shop_industry <- sapply(customers,at_industry, transactions =industries_only_unique, industry =industry)\
+Sys.time()-s\
+shop_industry <- cbind(customers,t(shop_industry))\
+colnames(shop_industry)=c('acct_id_code','shop_ind_M1008','shop_ind_M1707','shop_ind_M1883','shop_ind_M2168','shop_ind_M2203',\
+                          'shop_ind_M2493','shop_ind_M3123','shop_ind_M3126','shop_ind_M3172','shop_ind_M3342',\
+                          'shop_ind_M3437','shop_ind_M3456','shop_ind_M382','shop_ind_M3868')\
+\
+# Shop at industry in zip\
+industries_zip_unique <- unique(industries_only[c("acct_id_code","merchant_zip5", "Industry_Name")])\
+s=Sys.time()\
+shop_industry_zip <- sapply(customers,at_industry_zip, transactions =industries_zip_unique, industry =industry, merchant_zips=merchant_zips)\
+Sys.time()-s\
+shop_industry_zip <- cbind(customers,t(shop_industry_zip))\
+colnames(shop_industry_zip)=c('acct_id_code','shop_ind_zip_M1008','shop_ind_zip_M1707','shop_ind_zip_M1883','shop_ind_zip_M2168',\
+                              'shop_ind_zip_M2203','shop_ind_zip_M2493','shop_ind_zip_M3123','shop_ind_zip_M3126','shop_ind_zip_M3172',\
+                              'shop_ind__zipM3342','shop_ind_zip_M3437','shop_ind_zip_M3456','shop_ind_zip_M382','shop_ind_zip_M3868')\
+\
+################################################################################################################################\
+# Create Complete X matrix\
+################################################################################################################################\
+bigX <- merge_recurse(list(static_X, freq2, live_inzip, shop_inzip, shop_industry,shop_industry_zip), by = "acct_id_code")\
+bigX_order <- bigX[order(bigX$acct_id_code),] # order by id code\
+bigX_order[is.na(bigX_order)] <- 0\
+complete_X <- bigX_order\
+\
+write.csv(complete_X, file.out)\
+Sys.time()-t\
+system("say I am done")\
+\
+################################################################################################################################\
+# Y_creation_inR.R\
+# Creates Y Matrix\
+# 10.30.2013\
+################################################################################################################################\
+get_y = function(id, transactions, target_merchants)\{\
+  sub <- transactions[transactions$acct_id_code == id,]\
+  out = rep(0,14)\
+  for (i in 1:14)\{\
+    out[i] =target_merchants[i] %in% sub$merchant_code\
+  \}\
+  return(out)\
+\}\
+all.vals <- c("~/Desktop/M1108.csv","~/Desktop/M1369.csv","~/Desktop/M1444.csv","~/Desktop/M1600.csv","~/Desktop/M1739.csv")\
+file.vals <- c("Y_1108","Y_1369","Y_1444","Y_1600","Y_1739")\
+file.out.vals <- c("~/Desktop/Y_data/Y_1108.csv","~/Desktop/Y_data/Y_1369.csv","~/Desktop/Y_data/Y_1444.csv",\
+                   "~/Desktop/Y_data/Y_1600.csv","~/Desktop/Y_data/Y_1739.csv")\
+for (i in 1:5)\{\
+  all <- read.csv(all.vals[i])\
+  file <- file.vals[i]\
+  file.out = file.out.vals[i]\
+  target_merchants <- c("M1008",'M1707','M1883','M2168','M2203','M2493','M3123','M3126','M3172','M3342','M3437','M3456',\
+                        'M382','M3868')\
+  \
+  Y_period <-all[substr(all$trxn_date,3,5) %in% c('JUL','AUG','SEP') & substr(all$trxn_date,8,9) %in% c('11') & all$merchant_code %in% target_merchants,]\
+  \
+  ################################################################################################################################\
+  # CREATE VARIABLES\
+  ################################################################################################################################\
+\
+  \
+  customers <- unique(all$acct_id_code)\
+  Y_out = sapply(customers,get_y, transactions=Y_period, target_merchants = target_merchants)\
+  Y_out = cbind(customers, t(Y_out))  \
+  colnames(Y_out) = c("acct_id_code",'y_M1008','y_M1707','y_M1883','y_M2168','y_M2203','y_M2493','y_M3123','y_M3126','y_M3172',\
+                      'y_M3342','y_M3437','y_M3456','y_M382','y_M3868')\
+  assign(file,Y_out)\
+  write.csv(Y_out,file.out)\
+\}\
+system("say I am done")\
+\
+################################################################################################################################\
+# combineX_Y.R\
+# 11.3.2013\
+################################################################################################################################\
+library(gtools)\
+X_M155 <- read.csv("~/Desktop/X_data/X_M155.csv")\
+X_M216 <- read.csv("~/Desktop/X_data/X_M216.csv")\
+X_M218 <- read.csv("~/Desktop/X_data/X_M218.csv")\
+X_M274 <- read.csv("~/Desktop/X_data/X_M274.csv")\
+X_M340 <- read.csv("~/Desktop/X_data/X_M340.csv")\
+X_M410 <- read.csv("~/Desktop/X_data/X_M410.csv")\
+X_M753 <- read.csv("~/Desktop/X_data/X_M753.csv")\
+X_M919 <- read.csv("~/Desktop/X_data/X_M919.csv")\
+X_M1108 <- read.csv("~/Desktop/X_data/X_M1108.csv")\
+X_M1369 <- read.csv("~/Desktop/X_data/X_M1369.csv")\
+X_M1444 <- read.csv("~/Desktop/X_data/X_M1444.csv")\
+X_M1600 <- read.csv("~/Desktop/X_data/X_M1600.csv")\
+X_M1739 <- read.csv("~/Desktop/X_data/X_M1739.csv")\
+X_M2024 <- read.csv("~/Desktop/X_data/X_M2024.csv")\
+X_M2042 <- read.csv("~/Desktop/X_data/X_M2042.csv")\
+X_M2198 <- read.csv("~/Desktop/X_data/X_M2198.csv")\
+X_M2295 <- read.csv("~/Desktop/X_data/X_M2295.csv")\
+X_M2352 <- read.csv("~/Desktop/X_data/X_M2352.csv")\
+X_M2563 <- read.csv("~/Desktop/X_data/X_M2563.csv")\
+X_M3497 <- read.csv("~/Desktop/X_data/X_M3497.csv")\
+X_M3589 <- read.csv("~/Desktop/X_data/X_M3589.csv")\
+X_M3841 <- read.csv("~/Desktop/X_data/X_M3841.csv")\
+X_M3892 <- read.csv("~/Desktop/X_data/X_M3892.csv")\
+X_Val <- read.csv("~/Desktop/X_data/X_Validation.csv")\
+\
+\
+big_X <- smartbind(X_M155,X_M216,X_M218,X_M274,X_M340,X_M410,X_M753,X_M919,X_M1108,X_M1369,X_M1444,X_M1600,X_M1739,X_M2024,\
+                       X_M2042,X_M2198,X_M2295,X_M2352,X_M2563,X_M3497,X_M3589,X_M3841,X_M3892)\
+big_X_unique <- big_X[!duplicated(big_X$acct_id_code),]\
+big_X_unique[is.na(big_X_unique)] <- 0\
+write.csv(big_X_unique,'~/Desktop/X_data/all_X.csv')\
+\
+Y_M155 <- read.csv("~/Desktop/Y_data/Y_155.csv")\
+Y_M216 <- read.csv("~/Desktop/Y_data/Y_216.csv")\
+Y_M218 <- read.csv("~/Desktop/Y_data/Y_218.csv")\
+Y_M274 <- read.csv("~/Desktop/Y_data/Y_274.csv")\
+Y_M340 <- read.csv("~/Desktop/Y_data/Y_340.csv")\
+Y_M410 <- read.csv("~/Desktop/Y_data/Y_410.csv")\
+Y_M753 <- read.csv("~/Desktop/Y_data/Y_753.csv")\
+Y_M919 <- read.csv("~/Desktop/Y_data/Y_919.csv")\
+Y_M1108 <- read.csv("~/Desktop/Y_data/Y_1108.csv")\
+Y_M1369 <- read.csv("~/Desktop/Y_data/Y_1369.csv")\
+Y_M1444 <- read.csv("~/Desktop/Y_data/Y_1444.csv")\
+Y_M1600 <- read.csv("~/Desktop/Y_data/Y_1600.csv")\
+Y_M1739 <- read.csv("~/Desktop/Y_data/Y_1739.csv")\
+Y_M2024 <- read.csv("~/Desktop/Y_data/Y_2024.csv")\
+Y_M2042 <- read.csv("~/Desktop/Y_data/Y_2042.csv")\
+Y_M2198 <- read.csv("~/Desktop/Y_data/Y_2198.csv")\
+Y_M2295 <- read.csv("~/Desktop/Y_data/Y_2295.csv")\
+Y_M2352 <- read.csv("~/Desktop/Y_data/Y_2352.csv")\
+Y_M2563 <- read.csv("~/Desktop/Y_data/Y_2563.csv")\
+Y_M3497 <- read.csv("~/Desktop/Y_data/Y_3497.csv")\
+Y_M3589 <- read.csv("~/Desktop/Y_data/Y_3589.csv")\
+Y_M3841 <- read.csv("~/Desktop/Y_data/Y_3841.csv")\
+Y_M3892 <- read.csv("~/Desktop/Y_data/Y_3892.csv")\
+\
+\
+big_Y <- smartbind(Y_M155,Y_M216,Y_M218,Y_M274,Y_M340,Y_M410,Y_M753,Y_M919,Y_M1108,Y_M1369,Y_M1444,Y_M1600,Y_M1739,Y_M2024,\
+                   Y_M2042,Y_M2198,Y_M2295,Y_M2352,Y_M2563,Y_M3497,Y_M3589,Y_M3841,Y_M3892)\
+big_Y_unique <- big_Y[!duplicated(big_Y$acct_id_code),]\
+big_Y_unique[is.na(big_Y_unique)] <- 0\
+write.csv(big_Y_unique,'~/Desktop/Y_data/all_Y.csv')\
+\
+################################################################################################################################\
+# varCreation_inR_forVal_lowfreq.R\
+# creates `X' matrix, given a datafile for 9 month frame\
+# 11.3.2013\
+################################################################################################################################\
+#read data\
+\
+all <- read.csv("C:/Users/Andy/Desktop/validation_auth.csv")\
+head(all)\
+validation <- read.csv("C:/Users/Andy/Desktop/SMC.csv")\
+validation_ids <- unique(validation$acct_id_code)\
+\
+small <- all[all$acct_id_code %in% validation_ids,]\
+file.out = "~/CapOne/X_Validation.csv"\
+################################################################################################################################\
+# FUNCTIONS\
+################################################################################################################################\
+in_zips_shop <- function(id,pairs,merchant_zips)\{\
+  merch_z = pairs[pairs$acct_id_code == id,]\
+  out = rep(0,14)\
+  for (i in 1:14)\{\
+    out[i] <-  as.numeric(sum(merch_z[,2] %in% merchant_zips[[i]]) >0)\
+  \}\
+  return(out)\
+\}\
+\
+in_zips <- function(zip,merchant_zips)\{\
+  out = rep(0,14)\
+  for (i in 1:14)\{\
+    out[i] <- as.numeric( zip %in% merchant_zips[[i]])\
+  \}\
+  return(out)\
+\}\
+\
+at_industry = function(id, transactions, industry)\{\
+  out=rep(0,14)\
+  by_id <- transactions[transactions$acct_id_code == id,]\
+  for (i in 1:14)\{\
+    out[i] <- as.numeric(dim(by_id[by_id$Industry_Name ==industry[i],])[1] >0)\
+  \}\
+  return(out)\
+\}\
+\
+at_industry_zip = function(id, transactions, industry,merchant_zips)\{\
+  out=rep(0,14)\
+  by_id <- transactions[transactions$acct_id_code == id,]\
+  for (i in 1:14)\{\
+    out[i] <- as.numeric(dim(by_id[by_id$Industry_Name ==industry[i] & (by_id$merchant_zip %in% merchant_zips[[i]]),])[1] >0)\
+  \}\
+  return(out)\
+\}\
+################################################################################################################################\
+# CREATE STATIC VARIABLES for VALIDATION SET - based on 9 months\
+################################################################################################################################\
+all <- small[!(substr(small$trxn_date,3,5) %in% c('JUL','AUG','SEP')),]\
+s=t=Sys.time()\
+purchase_online <- aggregate(all$internet_trxn, by=list(all$acct_id_code), 'FUN' = mean)\
+colnames(purchase_online) <- c("acct_id_code","online_prob")\
+Sys.time()-s\
+\
+s=Sys.time()\
+# aggregate purchases by industry\
+tmp_industry <- aggregate(rep(1,dim(all)[1]), by=list(all$acct_id_code, as.character(all$Industry_Name)), 'FUN' = sum)\
+colnames(tmp_industry) = c('acct_id_code', 'Industry_Name','n')\
+industry_counts <- reshape(tmp_industry, v.names = "n", idvar = "acct_id_code", timevar= "Industry_Name",direction="wide",sep="_")\
+industry_counts[is.na(industry_counts)] <- 0\
+Sys.time()-s\
+\
+s=Sys.time()\
+#total number of purchases\
+freq_count <- aggregate(rep(1,dim(all)[1]), by=list(all$acct_id_code), 'FUN' = sum)\
+colnames(freq_count) <- c('acct_id_code','trans_freq')\
+Sys.time()-s\
+\
+s=Sys.time()\
+# number of purchases in previous 3 months\
+last3 <- subset(all, substr(all$trxn_date,3,5) %in% c('APR','MAY','JUN'))\
+freq_count_last3 <- aggregate(rep(1,dim(last3)[1]), by=list(last3$acct_id_code), 'FUN' = sum)\
+colnames(freq_count_last3) <- c('acct_id_code','freq_prev3')\
+Sys.time()-s\
+\
+# Number of Merchants and Merchant ZipCodes\
+num_zips <- aggregate(rep(1,dim(all)[1]), by=list(all$acct_id_code, as.character(all$merchant_zip)), 'FUN' = sum)\
+zip_count <- aggregate(rep(1,dim(num_zips)[1]),list(num_zips$Group.1),sum)\
+colnames(zip_count) =c('acct_id_code','Num_ZIP')\
+\
+num_merch <- aggregate(rep(1,dim(all)[1]), by=list(all$acct_id_code, as.character(all$merchant_code)), 'FUN' = sum)\
+merchant_count <- aggregate(rep(1,dim(num_merch)[1]),list(num_merch$Group.1),sum)\
+colnames(merchant_count) =c('acct_id_code','Num_Merchant')\
+\
+# aggregate purchases by industry\
+all_online <- subset(all, all$internet_trxn ==1)\
+tmp_industry_online <- aggregate(rep(1,dim(all_online)[1]), by=list(all_online$acct_id_code, as.character(all_online$Industry_Name)), 'FUN' = sum)\
+colnames(tmp_industry_online) = c('acct_id_code', 'Industry_Name','n_o')\
+industry_counts_online <- reshape(tmp_industry_online, v.names = "n_o", idvar = "acct_id_code", timevar= "Industry_Name",\
+                                  direction="wide",sep='_')\
+industry_counts_online[is.na(industry_counts_online)] <- 0\
+\
+# combine `static' variables\
+tmp <- merge_recurse(list(merchant_count, zip_count, freq_count_last3, freq_count, industry_counts, purchase_online, \
+                          industry_counts_online), by = "acct_id_code")\
+tmp.order <- tmp[order(tmp$acct_id_code),] # order by id code\
+tmp.order[is.na(tmp.order)] <- 0\
+static_X <- tmp.order\
+################################################################################################################################\
+# CREATE Merchant Specific VARIABLES for VALIDATION SET\
+################################################################################################################################\
+# Freq at Target Merchant\
+target_merchants <- c('M1008','M1707','M1883','M2168','M2203','M2493','M3123',\
+                      'M3126','M3172','M3342','M3437','M3456','M382','M3868')\
+at_merch <- all[all$merchant_code %in% target_merchants,]\
+\
+freq <- aggregate(rep(1,dim(at_merch)[1]),by=list(at_merch$acct_id_code,at_merch$merchant_code),sum)\
+colnames(freq)=c('acct_id_code','Merchant','Freq')\
+freq2 <- reshape(freq, v.names = "Freq", idvar = "acct_id_code", timevar= "Merchant",direction="wide",sep="_")\
+freq2[is.na(freq2)] <- 0\
+\
+# Live in same Zip as Merchant\
+for (i in target_merchants)\{\
+  small <- (subset(at_merch, at_merch$merchant_code ==i ))\
+  zips <-as.character(unique(as.character(small$merchant_zip5)))\
+  nam <- paste('z',i,sep="_") \
+  assign(nam, zips)\
+\}\
+merchant_zips =list(z_M1008,z_M1707,z_M1883,z_M2168,z_M2203,z_M2493,z_M3123,\
+                    z_M3126,z_M3172,z_M3342,z_M3437,z_M3456,z_M382,z_M3868)\
+small<-all[!duplicated(paste(all$acct_id_code,all$customer_zip5)),]\
+a<-strptime(small$trxn_date, '%d%B%Y')\
+bytime <- small[order(a,decreasing =T),]\
+customer_zips <- bytime[!duplicated(bytime$acct_id_code),] # retain most recent zip\
+live_inzip <- sapply(customer_zips$customer_zip5,in_zips, merchant_zips=merchant_zips)\
+live_inzip <- cbind(customer_zips$acct_id_code,t(live_inzip))\
+colnames(live_inzip)=c('acct_id_code','live_M1008','live_M1707','live_M1883','live_M2168','live_M2203','live_M2493',\
+                       'live_M3123','live_M3126','live_M3172','live_M3342','live_M3437','live_M3456','live_M382','live_M3868')\
+\
+# Shop in same Zip as Merchant\
+pairs <- unique(all[c("acct_id_code", "merchant_zip5")])\
+customers <- unique(pairs$acct_id_code)\
+shop_zip <- sapply(customers,in_zips_shop, pairs=pairs, merchant_zips=merchant_zips) # a bit slow (10 min)\
+shop_inzip <- cbind(customers,t(shop_zip))\
+colnames(shop_inzip)=c('acct_id_code','shop_M1008','shop_M1707','shop_M1883','shop_M2168','shop_M2203','shop_M2493',\
+                       'shop_M3123','shop_M3126','shop_M3172','shop_M3342','shop_M3437','shop_M3456','shop_M382','shop_M3868')\
+\
+# Shop at industry\
+industry <- at_merch[!duplicated(at_merch$merchant_code),]\
+industry <- industry$Industry_Name\
+industries_only <- all[all$Industry_Name %in% industry,]\
+industries_only_unique <- unique(industries_only[c("acct_id_code", "Industry_Name")])\
+s=Sys.time()\
+shop_industry <- sapply(customers,at_industry, transactions =industries_only_unique, industry =industry)\
+Sys.time()-s\
+shop_industry <- cbind(customers,t(shop_industry))\
+colnames(shop_industry)=c('acct_id_code','shop_ind_M1008','shop_ind_M1707','shop_ind_M1883','shop_ind_M2168','shop_ind_M2203',\
+                          'shop_ind_M2493','shop_ind_M3123','shop_ind_M3126','shop_ind_M3172','shop_ind_M3342',\
+                          'shop_ind_M3437','shop_ind_M3456','shop_ind_M382','shop_ind_M3868')\
+\
+# Shop at industry in zip\
+industries_zip_unique <- unique(industries_only[c("acct_id_code","merchant_zip5", "Industry_Name")])\
+s=Sys.time()\
+shop_industry_zip <- sapply(customers,at_industry_zip, transactions =industries_zip_unique, industry =industry, merchant_zips=merchant_zips)\
+Sys.time()-s\
+shop_industry_zip <- cbind(customers,t(shop_industry_zip))\
+colnames(shop_industry_zip)=c('acct_id_code','shop_ind_zip_M1008','shop_ind_zip_M1707','shop_ind_zip_M1883','shop_ind_zip_M2168',\
+                          'shop_ind_zip_M2203','shop_ind_zip_M2493','shop_ind_zip_M3123','shop_ind_zip_M3126','shop_ind_zip_M3172',\
+                          'shop_ind__zipM3342','shop_ind_zip_M3437','shop_ind_zip_M3456','shop_ind_zip_M382','shop_ind_zip_M3868')\
+\
+################################################################################################################################\
+# Create Complete X matrix\
+################################################################################################################################\
+bigX <- merge_recurse(list(static_X, freq2, live_inzip, shop_inzip, shop_industry,shop_industry_zip), by = "acct_id_code")\
+bigX_order <- bigX[order(bigX$acct_id_code),] # order by id code\
+bigX_order[is.na(bigX_order)] <- 0\
+complete_X <- bigX_order\
+\
+write.csv(complete_X, file.out)\
+\
+# system("say I am done")\
+\
+\
+################################################################################################################################\
+# Y_creation_inR.R\
+# Creates Y Matrix\
+# 10.30.2013\
+################################################################################################################################\
+get_y = function(id, transactions, target_merchants)\{\
+  sub <- transactions[transactions$acct_id_code == id,]\
+  out = rep(0,14)\
+  for (i in 1:14)\{\
+    out[i] =target_merchants[i] %in% sub$merchant_code\
+  \}\
+  return(out)\
+\}\
+\
+\
+all <- read.csv("C:/Users/Andy/Desktop/validation_auth.csv")\
+small <- all[all$acct_id_code %in% validation_ids,]\
+\
+all <- small[(substr(small$trxn_date,3,5) %in% c('JUL','AUG','SEP')),]\
+target_merchants <- c("M1008",'M1707','M1883','M2168','M2203','M2493','M3123','M3126','M3172','M3342','M3437','M3456',\
+                      'M382','M3868')\
+  \
+Y_period <-all\
+################################################################################################################################\
+# CREATE VARIABLES\
+################################################################################################################################  \
+customers <- unique(all$acct_id_code)\
+Y_out = sapply(customers,get_y, transactions=Y_period, target_merchants = target_merchants)\
+Y_out = cbind(customers, t(Y_out))  \
+colnames(Y_out) = c("acct_id_code",'y_M1008','y_M1707','y_M1883','y_M2168','y_M2203','y_M2493','y_M3123','y_M3126','y_M3172',\
+                    'y_M3342','y_M3437','y_M3456','y_M382','y_M3868')\
+\
+\
+################################################################################################################################\
+# Cluster.R\
+# 11.3.2013\
+# Create Customer Segmentation\
+################################################################################################################################\
+\
+# Read Data and Split High/Low Freq customers\
+X<-read.csv("~/Desktop/X_data/all_X.csv")\
+X_validation <-read.csv("~/Desktop/X_data/X_Validation.csv")\
+X_Val_big <- X_validation[X_validation$trans_freq >359,]\
+X_Val_small <- X_validation[X_validation$trans_freq <360,]\
+\
+all_big <- rbind(X[,c(3,4,5,7)],X_Val_big[,c(2,3,4,6)])\
+small<-X_Val_small[,c(2,3,4,6)]\
+\
+highfreq <- all_big\
+# K-means for High Freq\
+Data<-scale(highfreq[,2:4]); #keep trans_count, num_zips, num_merchants\
+rownames(Data)<-highfreq$acct_id_code;\
+  \
+#decision to  # of clusters\
+wss <- (nrow(Data)-1)*sum(apply(Data,2,var))\
+for (i in 2:10) wss[i] <- sum(kmeans(Data, centers=i)$withinss,iter.max=30)\
+plot(1:10, wss, type="b", xlab="Number of Clusters", ylab="Within groups sum of squares")\
+  \
+#No big difference in WSS, for less number of models, Implementing k means with k=3\
+fit.k3 <- kmeans(Data, 3,iter.max=100) \
+cluster.k3<-fit.k3$cluster\
+  \
+#Plotting customers in training set based on the cluster\
+install.packages('rgl')\
+library(rgl)\
+plot3d(x = highfreq[,2], y =highfreq[,3], z = highfreq[,4],col=cluster.k3,xlab="# of ZIP",ylab="# of Merchants",zlab="Trxn Frequencies")\
+labels <-cbind(highfreq,cluster.k3)\
+\
+lowfreq <- small\
+# K-means for Low Freq\
+Data<-scale(lowfreq[,2:4]); #keep trans_count, num_zips, num_merchants\
+rownames(Data)<-lowfreq$acct_id_code;\
+\
+#decision to  # of clusters\
+wss <- (nrow(Data)-1)*sum(apply(Data,2,var))\
+for (i in 2:10) wss[i] <- sum(kmeans(Data, centers=i)$withinss,iter.max=30)\
+plot(1:10, wss, type="b", xlab="Number of Clusters", ylab="Within groups sum of squares")\
+\
+#No big difference in WSS, for less number of models, Implementing k means with k=10\
+fit.k3 <- kmeans(Data, 3,iter.max=100) \
+cluster.k3.2<-fit.k3$cluster\
+\
+#Plotting customers in training set based on the cluster\
+plot3d(x = lowfreq[,2], y =lowfreq[,3], z = lowfreq[,4],col=cluster.k3.2,xlab="# of ZIP",ylab="# of Merchants",zlab="Trxn Frequencies")\
+labels <-cbind(lowfreq,cluster.k3)\
+\
+#Plotting customers in training set based on the cluster\
+vals <- rbind(highfreq,lowfreq)\
+cluster.k3.2 <- cluster.k3.2 +3\
+cluster <- c(cluster.k3,cluster.k3.2)\
+plot3d(x = vals[,2], y =vals[,3], z = vals[,4],col=cluster,xlab="# of ZIP",ylab="# of Merchants",zlab="Trxn Frequencies")\
+labels <-cbind(vals,cluster)\
+test_labels <- labels[1:dim(X)[1],c(1,5)]\
+val_labels <- labels[(dim(X)[1]+1):(dim(X)[1]+dim(X_validation)[1]),c(1,5)]\
+write.csv(test_labels,"~/Desktop/X_data/test_labels.csv")\
+write.csv(val_labels,"~/Desktop/X_data/val_labels.csv")\
+\
+################################################################################################################################\
+# Modeling and Opt Decision.R\
+# Fits Model and writes out predictions\
+# 10.31.2013\
+################################################################################################################################\
+\
+################################################################################################################################\
+# Functions\
+################################################################################################################################\
+decision_engine <- function(probs, loss_issue = c(25,20,15,10,5,-3), lost_noissue = -1, return_exp =F, return_coup=T)\{\
+  pos <- rank(probs, ties.method ='random') %in% 10:14\
+  max_probs = probs[pos]\
+  \
+  redeem5 <- prod(max_probs)\
+  \
+  redeem4 <- prod(c((1-max_probs[1]),max_probs[-1])) + prod(c((1-max_probs[2]),max_probs[-2])) +\
+    prod(c((1-max_probs[3]),max_probs[-3])) +prod(c((1-max_probs[4]),max_probs[-4])) +\
+    prod(c((1-max_probs[5]),max_probs[-5]))\
+  \
+  redeem3 <- prod(c((1-max_probs[c(1,2)]),max_probs[-c(1,2)]))+prod(c((1-max_probs[c(1,3)]),max_probs[-c(1,3)]))+\
+    prod(c((1-max_probs[c(1,4)]),max_probs[-c(1,4)]))+prod(c((1-max_probs[c(1,5)]),max_probs[-c(1,5)]))+\
+    prod(c((1-max_probs[c(2,3)]),max_probs[-c(2,3)]))+prod(c((1-max_probs[c(2,4)]),max_probs[-c(2,4)]))+\
+    prod(c((1-max_probs[c(2,5)]),max_probs[-c(2,5)]))+prod(c((1-max_probs[c(3,4)]),max_probs[-c(3,4)]))+\
+    prod(c((1-max_probs[c(3,5)]),max_probs[-c(3,5)]))+prod(c((1-max_probs[c(4,5)]),max_probs[-c(4,5)]))\
+  \
+  redeem2 <- prod(c((1-max_probs[-c(1,2)]),max_probs[c(1,2)]))+prod(c((1-max_probs[-c(1,3)]),max_probs[c(1,3)]))+\
+    prod(c((1-max_probs[-c(1,4)]),max_probs[c(1,4)]))+prod(c((1-max_probs[-c(1,5)]),max_probs[c(1,5)]))+\
+    prod(c((1-max_probs[-c(2,3)]),max_probs[c(2,3)]))+prod(c((1-max_probs[-c(2,4)]),max_probs[c(2,4)]))+\
+    prod(c((1-max_probs[-c(2,5)]),max_probs[c(2,5)]))+prod(c((1-max_probs[-c(3,4)]),max_probs[c(3,4)]))+\
+    prod(c((1-max_probs[-c(3,5)]),max_probs[c(3,5)]))+prod(c((1-max_probs[-c(4,5)]),max_probs[c(4,5)]))\
+  \
+  redeem1 <- prod(c((1-max_probs[-1]),max_probs[1])) + prod(c((1-max_probs[-2]),max_probs[2])) +\
+    prod(c((1-max_probs[-3]),max_probs[3])) +prod(c((1-max_probs[-4]),max_probs[4])) +\
+    prod(c((1-max_probs[-5]),max_probs[5]))\
+  \
+  redeem0 <- prod(1-max_probs)\
+  \
+  exp_loss <- loss_issue[1]*redeem5 + loss_issue[2]*redeem4 + loss_issue[3]*redeem3 +\
+    loss_issue[4]*redeem2 + loss_issue[5]*redeem1 + loss_issue[6]*redeem0\
+    \
+  response <- rep("No",14)\
+  \
+  if (exp_loss > lost_noissue)  \{\
+    response[pos] <- "Yes"\
+    if (return_coup & ! return_exp) out=response\
+    if (!return_coup & return_exp) out=exp_loss\
+    if (return_coup & return_exp) out=list(response,exp_loss)\
+    if (!return_coup & !return_exp) out=NULL    \
+    return(out)\
+  \} else \{\
+    if (return_coup & ! return_exp) out=response\
+    if (!return_coup & return_exp) out=exp_loss\
+    if (return_coup & return_exp) out=list(response,exp_loss)\
+    if (!return_coup & !return_exp) out=NULL    \
+    return(out)\
+  \}\
+\}\
+################################################################################################################################\
+# FIT RANDOM FOREST\
+################################################################################################################################\
+library(randomForest)\
+\
+Y <- read.csv("~/Desktop/Y_data/all_Y.csv")\
+Y <- Y[,-c(1,2)] # drop row names\
+test_X <- read.csv ("~/Desktop/X_data/all_X.csv")\
+test_X <- test_X[,-c(1,2)] #drop row names\
+val_X <- read.csv('~/Desktop/X_data/X_Validation.csv')\
+val_X <- val_X[,-1]\
+val_X <- smartbind(test_X[1:5,],val_X) #ensure same variable ordering\
+val_X <- val_X[-(1:5),] #remove test obs\
+val_X[is.na(val_X)] <- 0\
+big_data <- merge(Y,test_X, by ="acct_id_code")\
+big_data[is.na(big_data)] <- 0\
+test_labels <- read.csv("~/Desktop/X_data/test_labels.csv")\
+test_labels <- test_labels[,-1]\
+val_labels <- read.csv("~/Desktop/X_data/val_labels.csv")\
+val_labels <- val_labels[,-1]\
+\
+# Run Models for clusters 1-3\
+numtrees <- 100\
+train_set <- merge(big_data,test_labels, by ='acct_id_code')\
+val_set <- merge(val_X,val_labels, by ='acct_id_code')\
+\
+tree_names <-c('t_M1008','t_M1707','t_M1883','t_M2168','t_M2203','t_M2493','t_M3123',\
+               't_M3126','t_M3172','t_M3342','t_M3437','t_M3456','t_M382','t_M3868')\
+prob_names <-c('probs_M1008_rf','probs_M1707_rf','probs_M1883_rf','probs_M2168_rf','probs_M2203_rf',\
+               'probs_M2493_rf','probs_M3123_rf','probs_M3126_rf','probs_M3172_rf','probs_M3342_rf',\
+               'probs_M3437_rf','probs_M3456_rf','probs_M382_rf','probs_M3868_rf') \
+s <- Sys.time()\
+scores <- NULL\
+for (i in 1:3)\{\
+  train <- train_set[train_set$cluster ==i,]\
+  val <- val_set[val_set$ cluster ==i,]\
+  for (j in 1:14)\{\
+    print(j)\
+    tr<-randomForest(x=train[,-c(1:15)], y=as.factor(train[,(j+1)]),type="classification", ntree=numtrees)\
+    assign(tree_names[j],tr)\
+    pr <- predict(tr,val[,-1],type="prob")\
+    assign(prob_names[j],pr)\
+  \}\
+  P<- cbind(probs_M1008_rf[,2],probs_M1707_rf[,2],probs_M1883_rf[,2],probs_M2168_rf[,2],probs_M2203_rf[,2],\
+           probs_M2493_rf[,2],probs_M3123_rf[,2],probs_M3126_rf[,2],probs_M3172_rf[,2],probs_M3342_rf[,2],\
+           probs_M3437_rf[,2],probs_M3456_rf[,2],probs_M382_rf[,2],probs_M3868_rf[,2])\
+  scores <- rbind(scores,cbind(val$acct_id_code,P))\
+\}\
+Sys.time() - s\
+################################################################################################################################\
+# Make Decision\
+################################################################################################################################\
+\
+a <- apply(scores[,-1],1, "FUN" =decision_engine)\
+\
+\
+################################################################################################################################\
+# FORMAT OUTPUT\
+################################################################################################################################\
+score <- (matrix(t(scores[,-1]),ncol=1))\
+offer <- (matrix(a,ncol=1))\
+acct_id_code <- rep(scores[,1],each=14)\
+merchant_codes <- c('M1008','M1707','M1883','M2168','M2203','M2493','M3123','M3126','M3172','M3342','M3437','M3456','M382','M3868')\
+merchant_code <- rep(merchant_codes, dim(a)[2] )\
+out <- data.frame(acct_id_code,merchant_code,score,offer)\
+write.csv(out,'~/CapOne/bigout.csv')\
+\
+################################################################################################################################\
+# varCreation_inR_forVal_lowfreq.R\
+# creates `X' matrix, given a datafile for 9 month frame\
+# 11.3.2013\
+################################################################################################################################\
+#read data\
+\
+all <- read.csv("C:/Users/Andy/Desktop/validation_auth.csv")\
+head(all)\
+validation <- read.csv("C:/Users/Andy/Desktop/SMC.csv")\
+validation_ids <- unique(validation$acct_id_code)\
+\
+small <- all[all$acct_id_code %in% validation_ids,]\
+file.out = "~/CapOne/X_Validation.csv"\
+################################################################################################################################\
+# FUNCTIONS\
+################################################################################################################################\
+in_zips_shop <- function(id,pairs,merchant_zips)\{\
+  merch_z = pairs[pairs$acct_id_code == id,]\
+  out = rep(0,14)\
+  for (i in 1:14)\{\
+    out[i] <-  as.numeric(sum(merch_z[,2] %in% merchant_zips[[i]]) >0)\
+  \}\
+  return(out)\
+\}\
+\
+in_zips <- function(zip,merchant_zips)\{\
+  out = rep(0,14)\
+  for (i in 1:14)\{\
+    out[i] <- as.numeric( zip %in% merchant_zips[[i]])\
+  \}\
+  return(out)\
+\}\
+\
+at_industry = function(id, transactions, industry)\{\
+  out=rep(0,14)\
+  by_id <- transactions[transactions$acct_id_code == id,]\
+  for (i in 1:14)\{\
+    out[i] <- as.numeric(dim(by_id[by_id$Industry_Name ==industry[i],])[1] >0)\
+  \}\
+  return(out)\
+\}\
+\
+at_industry_zip = function(id, transactions, industry,merchant_zips)\{\
+  out=rep(0,14)\
+  by_id <- transactions[transactions$acct_id_code == id,]\
+  for (i in 1:14)\{\
+    out[i] <- as.numeric(dim(by_id[by_id$Industry_Name ==industry[i] & (by_id$merchant_zip %in% merchant_zips[[i]]),])[1] >0)\
+  \}\
+  return(out)\
+\}\
+################################################################################################################################\
+# CREATE STATIC VARIABLES for VALIDATION SET - based on 9 months\
+################################################################################################################################\
+all <- small[!(substr(small$trxn_date,3,5) %in% c('JUL','AUG','SEP')),]\
+s=t=Sys.time()\
+purchase_online <- aggregate(all$internet_trxn, by=list(all$acct_id_code), 'FUN' = mean)\
+colnames(purchase_online) <- c("acct_id_code","online_prob")\
+Sys.time()-s\
+\
+s=Sys.time()\
+# aggregate purchases by industry\
+tmp_industry <- aggregate(rep(1,dim(all)[1]), by=list(all$acct_id_code, as.character(all$Industry_Name)), 'FUN' = sum)\
+colnames(tmp_industry) = c('acct_id_code', 'Industry_Name','n')\
+industry_counts <- reshape(tmp_industry, v.names = "n", idvar = "acct_id_code", timevar= "Industry_Name",direction="wide",sep="_")\
+industry_counts[is.na(industry_counts)] <- 0\
+Sys.time()-s\
+\
+s=Sys.time()\
+#total number of purchases\
+freq_count <- aggregate(rep(1,dim(all)[1]), by=list(all$acct_id_code), 'FUN' = sum)\
+colnames(freq_count) <- c('acct_id_code','trans_freq')\
+Sys.time()-s\
+\
+s=Sys.time()\
+# number of purchases in previous 3 months\
+last3 <- subset(all, substr(all$trxn_date,3,5) %in% c('APR','MAY','JUN'))\
+freq_count_last3 <- aggregate(rep(1,dim(last3)[1]), by=list(last3$acct_id_code), 'FUN' = sum)\
+colnames(freq_count_last3) <- c('acct_id_code','freq_prev3')\
+Sys.time()-s\
+\
+# Number of Merchants and Merchant ZipCodes\
+num_zips <- aggregate(rep(1,dim(all)[1]), by=list(all$acct_id_code, as.character(all$merchant_zip)), 'FUN' = sum)\
+zip_count <- aggregate(rep(1,dim(num_zips)[1]),list(num_zips$Group.1),sum)\
+colnames(zip_count) =c('acct_id_code','Num_ZIP')\
+\
+num_merch <- aggregate(rep(1,dim(all)[1]), by=list(all$acct_id_code, as.character(all$merchant_code)), 'FUN' = sum)\
+merchant_count <- aggregate(rep(1,dim(num_merch)[1]),list(num_merch$Group.1),sum)\
+colnames(merchant_count) =c('acct_id_code','Num_Merchant')\
+\
+# aggregate purchases by industry\
+all_online <- subset(all, all$internet_trxn ==1)\
+tmp_industry_online <- aggregate(rep(1,dim(all_online)[1]), by=list(all_online$acct_id_code, as.character(all_online$Industry_Name)), 'FUN' = sum)\
+colnames(tmp_industry_online) = c('acct_id_code', 'Industry_Name','n_o')\
+industry_counts_online <- reshape(tmp_industry_online, v.names = "n_o", idvar = "acct_id_code", timevar= "Industry_Name",\
+                                  direction="wide",sep='_')\
+industry_counts_online[is.na(industry_counts_online)] <- 0\
+\
+# combine `static' variables\
+tmp <- merge_recurse(list(merchant_count, zip_count, freq_count_last3, freq_count, industry_counts, purchase_online, \
+                          industry_counts_online), by = "acct_id_code")\
+tmp.order <- tmp[order(tmp$acct_id_code),] # order by id code\
+tmp.order[is.na(tmp.order)] <- 0\
+static_X <- tmp.order\
+################################################################################################################################\
+# CREATE Merchant Specific VARIABLES for VALIDATION SET\
+################################################################################################################################\
+# Freq at Target Merchant\
+target_merchants <- c('M1008','M1707','M1883','M2168','M2203','M2493','M3123',\
+                      'M3126','M3172','M3342','M3437','M3456','M382','M3868')\
+at_merch <- all[all$merchant_code %in% target_merchants,]\
+\
+freq <- aggregate(rep(1,dim(at_merch)[1]),by=list(at_merch$acct_id_code,at_merch$merchant_code),sum)\
+colnames(freq)=c('acct_id_code','Merchant','Freq')\
+freq2 <- reshape(freq, v.names = "Freq", idvar = "acct_id_code", timevar= "Merchant",direction="wide",sep="_")\
+freq2[is.na(freq2)] <- 0\
+\
+# Live in same Zip as Merchant\
+for (i in target_merchants)\{\
+  small <- (subset(at_merch, at_merch$merchant_code ==i ))\
+  zips <-as.character(unique(as.character(small$merchant_zip5)))\
+  nam <- paste('z',i,sep="_") \
+  assign(nam, zips)\
+\}\
+merchant_zips =list(z_M1008,z_M1707,z_M1883,z_M2168,z_M2203,z_M2493,z_M3123,\
+                    z_M3126,z_M3172,z_M3342,z_M3437,z_M3456,z_M382,z_M3868)\
+small<-all[!duplicated(paste(all$acct_id_code,all$customer_zip5)),]\
+a<-strptime(small$trxn_date, '%d%B%Y')\
+bytime <- small[order(a,decreasing =T),]\
+customer_zips <- bytime[!duplicated(bytime$acct_id_code),] # retain most recent zip\
+live_inzip <- sapply(customer_zips$customer_zip5,in_zips, merchant_zips=merchant_zips)\
+live_inzip <- cbind(customer_zips$acct_id_code,t(live_inzip))\
+colnames(live_inzip)=c('acct_id_code','live_M1008','live_M1707','live_M1883','live_M2168','live_M2203','live_M2493',\
+                       'live_M3123','live_M3126','live_M3172','live_M3342','live_M3437','live_M3456','live_M382','live_M3868')\
+\
+# Shop in same Zip as Merchant\
+pairs <- unique(all[c("acct_id_code", "merchant_zip5")])\
+customers <- unique(pairs$acct_id_code)\
+shop_zip <- sapply(customers,in_zips_shop, pairs=pairs, merchant_zips=merchant_zips) # a bit slow (10 min)\
+shop_inzip <- cbind(customers,t(shop_zip))\
+colnames(shop_inzip)=c('acct_id_code','shop_M1008','shop_M1707','shop_M1883','shop_M2168','shop_M2203','shop_M2493',\
+                       'shop_M3123','shop_M3126','shop_M3172','shop_M3342','shop_M3437','shop_M3456','shop_M382','shop_M3868')\
+\
+# Shop at industry\
+industry <- at_merch[!duplicated(at_merch$merchant_code),]\
+industry <- industry$Industry_Name\
+industries_only <- all[all$Industry_Name %in% industry,]\
+industries_only_unique <- unique(industries_only[c("acct_id_code", "Industry_Name")])\
+s=Sys.time()\
+shop_industry <- sapply(customers,at_industry, transactions =industries_only_unique, industry =industry)\
+Sys.time()-s\
+shop_industry <- cbind(customers,t(shop_industry))\
+colnames(shop_industry)=c('acct_id_code','shop_ind_M1008','shop_ind_M1707','shop_ind_M1883','shop_ind_M2168','shop_ind_M2203',\
+                          'shop_ind_M2493','shop_ind_M3123','shop_ind_M3126','shop_ind_M3172','shop_ind_M3342',\
+                          'shop_ind_M3437','shop_ind_M3456','shop_ind_M382','shop_ind_M3868')\
+\
+# Shop at industry in zip\
+industries_zip_unique <- unique(industries_only[c("acct_id_code","merchant_zip5", "Industry_Name")])\
+s=Sys.time()\
+shop_industry_zip <- sapply(customers,at_industry_zip, transactions =industries_zip_unique, industry =industry, merchant_zips=merchant_zips)\
+Sys.time()-s\
+shop_industry_zip <- cbind(customers,t(shop_industry_zip))\
+colnames(shop_industry_zip)=c('acct_id_code','shop_ind_zip_M1008','shop_ind_zip_M1707','shop_ind_zip_M1883','shop_ind_zip_M2168',\
+                          'shop_ind_zip_M2203','shop_ind_zip_M2493','shop_ind_zip_M3123','shop_ind_zip_M3126','shop_ind_zip_M3172',\
+                          'shop_ind__zipM3342','shop_ind_zip_M3437','shop_ind_zip_M3456','shop_ind_zip_M382','shop_ind_zip_M3868')\
+\
+################################################################################################################################\
+# Create Complete X matrix\
+################################################################################################################################\
+bigX <- merge_recurse(list(static_X, freq2, live_inzip, shop_inzip, shop_industry,shop_industry_zip), by = "acct_id_code")\
+bigX_order <- bigX[order(bigX$acct_id_code),] # order by id code\
+bigX_order[is.na(bigX_order)] <- 0\
+complete_X <- bigX_order\
+\
+write.csv(complete_X, file.out)\
+\
+# system("say I am done")\
+\
+\
+################################################################################################################################\
+# Y_creation_inR.R\
+# Creates Y Matrix\
+# 10.30.2013\
+################################################################################################################################\
+get_y = function(id, transactions, target_merchants)\{\
+  sub <- transactions[transactions$acct_id_code == id,]\
+  out = rep(0,14)\
+  for (i in 1:14)\{\
+    out[i] =target_merchants[i] %in% sub$merchant_code\
+  \}\
+  return(out)\
+\}\
+\
+\
+all <- read.csv("C:/Users/Andy/Desktop/validation_auth.csv")\
+small <- all[all$acct_id_code %in% validation_ids,]\
+\
+all <- small[(substr(small$trxn_date,3,5) %in% c('JUL','AUG','SEP')),]\
+target_merchants <- c("M1008",'M1707','M1883','M2168','M2203','M2493','M3123','M3126','M3172','M3342','M3437','M3456',\
+                      'M382','M3868')\
+  \
+Y_period <-all\
+################################################################################################################################\
+# CREATE VARIABLES\
+################################################################################################################################  \
+customers <- unique(all$acct_id_code)\
+Y_out = sapply(customers,get_y, transactions=Y_period, target_merchants = target_merchants)\
+Y_out = cbind(customers, t(Y_out))  \
+colnames(Y_out) = c("acct_id_code",'y_M1008','y_M1707','y_M1883','y_M2168','y_M2203','y_M2493','y_M3123','y_M3126','y_M3172',\
+                    'y_M3342','y_M3437','y_M3456','y_M382','y_M3868')\
+\
+\
+}
