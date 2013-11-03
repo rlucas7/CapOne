@@ -102,6 +102,53 @@ To differentiate heterogenous groups, K-means clustering is applied to three con
 \end{figure}
 Figure~\ref{fig:cluster} provides a visual of the constructed clusters.  These clusters break apart customers not only by total transactions, but also take into account the diversity of stores and locales a credit card is used in.
 
+
+%%%Cluster numbers are ordered by the trxn Freq. and cluster labels in Table 2 and Table 1 are same .
+%\begin{table}[h!b!p!]\footnotesize
+%\centering
+%\vspace{10pt}
+%\caption{Summary  for Shopper Segmentations from K means clustering using the sample test sets.}
+%\begin{tabular}{l*{5}{c}r}
+%\hline
+%Cluster & Number of Customers & Avg. Transaction Frequency & Avg. Number of ZIP &  Avg. Number of Merchant \\
+%\hline
+%1	&14797	&465 	&33 &	39\\
+%2	&30261	&472 	&65	&57\\
+%3	&22981	&513 	&92 &	73\\
+%4	&9281	&574 	&3 	&70 \\
+%5	&16014	&721 	&118 &	92\\
+%6	&14670	&766 	&75 &	72\\
+%7	&7493	&1037	&152 &	117\\
+%8	&3126	&1074	&2 	&108\\
+%9	&8391	&1080	&103 &	97\\
+%10	&3116	&1568	&170 &	137\\
+%\hline
+%\end{tabular}\\
+%\label{table1}
+%\end{table}
+
+%\begin{table}[h!b!p!]\footnotesize
+%\centering
+%\vspace{10pt}
+%\caption{Summary for customers in the validation set classified into the predefined clusters from K-means clustering }
+%\begin{tabular}{l*{5}{c}r}
+%\hline
+%Cluster & Number of Customers & Avg. Transaction Frequency & Avg. Number of ZIP &  Avg. Number of Merchant \\
+%\hline
+%1	&9513&	170& 	35 	&28\\
+%2	&1925&	351 &	61 	&55\\
+%3	&838&	458 &	94 &68\\
+%4	&39	&473 	&27 	&54\\
+%5	&433&	723 &	119 &	91\\
+%6	&391&	738 &	72 	&74\\
+%7	&165&	1068 &	154 &	112\\
+%8	&233&	1073 &	98 	&96\\
+%9	&62	&1565 	&166 	&132\\
+%10	&1	&2183 	&6 &	2\\
+%\hline
+%\end{tabular}\\
+%\label{table1}
+%\end{table}
 The second reason for clustering is the inclusion of small frequency customers with less than 360 annual transactions in the validation set.  These customers clearly exhibit different spending habits than the high frequency customers that are provided in the sample test sets.  This necessitated a bit of creative thinking to develop a different type of model for these customers.  There were three options: use the models constructed on high frequency customers, do not issue coupons to these customers, or use the 12 months of data to learn about these customers.  Given that options one and two were unsatisfactory, we choose option three.  While not a perfect scenario, it was the best option.   The idea is to use the twelve months of data to learn how these customers behave.  The choices were either use data from July - March to predict April - June \emph{or}  October - June to predict back in time for July - September.  With additional time, we would like to combine these two models in an intelligent way, but given the time constraints we choose to predict for the same time frame as the required output (July - September).  Our thought was that the seasonal patterns would be strong enough that it would be beneficial to fit the model during the same months.
 
 \section{Model Building}
