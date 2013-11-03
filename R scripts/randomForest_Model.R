@@ -1,4 +1,9 @@
 library(randomForest)
+library(RMySQL)
+drv <- dbDriver("MySQL")
+mydb <- dbConnect(drv, user='andy', password='andy', dbname='mysql', host='128.173.212.125')
+dbListTables(mydb)
+Y <- dbGetQuery(mydb, "SELECT * from Y")
 
 big_data <- merge(Y,static_X, by ="acct_id_code")
 big_data[is.na(big_data)] <- 0

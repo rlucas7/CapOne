@@ -7,7 +7,6 @@
 ################################################################################################################################
 # Functions
 ################################################################################################################################
-probs = P[3,]
 decision_engine <- function(probs, loss_issue = c(25,20,15,10,5,-3), lost_noissue = -1, return_exp =F, return_coup=T){
   pos <- rank(probs, ties.method ='random') %in% 10:14
   max_probs = probs[pos]
@@ -62,8 +61,6 @@ decision_engine <- function(probs, loss_issue = c(25,20,15,10,5,-3), lost_noissu
 library(randomForest)
 library(RMySQL)
 library(glmnet)
-drv <- dbDriver("MySQL")
-mydb <- dbConnect(drv, user='andy', password='andy', dbname='mysql', host='128.173.212.125')
 Y <- read.csv("~/CapOne/Y.csv")
 Y <- Y[,-c(1,2)] # drop row names
 static_X <- read.csv ("~/CapOne/static_X.csv")
@@ -76,101 +73,101 @@ test_set_pos <- sample(dim(big_data)[1],test_size)
 test_set <- big_data[test_set_pos,]
 train_set <- big_data[-test_set_pos,]
 
-
+numtrees <- 50
 s <- Sys.time()
 # NEED TO ADD PREDICTIONS FOR ALL Y's
-t_M1008<-randomForest(x=train_set[,-c(1,2)], y=as.factor(train_set[,2]),type="classification", ntree=10)
+t_M1008<-randomForest(x=train_set[,-c(1,2)], y=as.factor(train_set[,2]),type="classification", ntree=numtrees)
 Sys.time() - s
 probs_M1008_rf <- predict(t_M1008,test_set[,-c(1,2)],type="prob")
 s <- Sys.time()
 
 s <- Sys.time()
 # NEED TO ADD PREDICTIONS FOR ALL Y's
-t_M1707<-randomForest(x=train_set[,-c(1,3)], y=as.factor(train_set[,3]),type="classification", ntree=10)
+t_M1707<-randomForest(x=train_set[,-c(1,3)], y=as.factor(train_set[,3]),type="classification", ntree=numtrees)
 Sys.time() - s
 probs_M1707_rf <- predict(t_M1707,test_set[,-c(1,3)],type="prob")
 s <- Sys.time()
 
 s <- Sys.time()
 # NEED TO ADD PREDICTIONS FOR ALL Y's
-t_M1883<-randomForest(x=train_set[,-c(1,4)], y=as.factor(train_set[,4]),type="classification", ntree=10)
+t_M1883<-randomForest(x=train_set[,-c(1,4)], y=as.factor(train_set[,4]),type="classification", ntree=numtrees)
 Sys.time() - s
 probs_M1883_rf <- predict(t_M1883,test_set[,-c(1,4)],type="prob")
 s <- Sys.time()
 
 s <- Sys.time()
 # NEED TO ADD PREDICTIONS FOR ALL Y's
-t_M2168<-randomForest(x=train_set[,-c(1,5)], y=as.factor(train_set[,5]),type="classification", ntree=10)
+t_M2168<-randomForest(x=train_set[,-c(1,5)], y=as.factor(train_set[,5]),type="classification", ntree=numtrees)
 Sys.time() - s
 probs_M2168_rf <- predict(t_M2168,test_set[,-c(1,5)],type="prob")
 s <- Sys.time()
 
 s <- Sys.time()
 # NEED TO ADD PREDICTIONS FOR ALL Y's
-t_M2203<-randomForest(x=train_set[,-c(1,6)], y=as.factor(train_set[,6]),type="classification", ntree=10)
+t_M2203<-randomForest(x=train_set[,-c(1,6)], y=as.factor(train_set[,6]),type="classification", ntree=numtrees)
 Sys.time() - s
 probs_M2203_rf <- predict(t_M2203,test_set[,-c(1,6)],type="prob")
 s <- Sys.time()
 
 s <- Sys.time()
 # NEED TO ADD PREDICTIONS FOR ALL Y's
-t_M2493<-randomForest(x=train_set[,-c(1,7)], y=as.factor(train_set[,7]),type="classification", ntree=10)
+t_M2493<-randomForest(x=train_set[,-c(1,7)], y=as.factor(train_set[,7]),type="classification", ntree=numtrees)
 Sys.time() - s
 probs_M2493_rf <- predict(t_M2493,test_set[,-c(1,7)],type="prob")
 s <- Sys.time()
 
 s <- Sys.time()
 # NEED TO ADD PREDICTIONS FOR ALL Y's
-t_M3123<-randomForest(x=train_set[,-c(1,8)], y=as.factor(train_set[,8]),type="classification", ntree=10)
+t_M3123<-randomForest(x=train_set[,-c(1,8)], y=as.factor(train_set[,8]),type="classification", ntree=numtrees)
 Sys.time() - s
 probs_M3123_rf <- predict(t_M3123,test_set[,-c(1,8)],type="prob")
 s <- Sys.time()
 
 s <- Sys.time()
 # NEED TO ADD PREDICTIONS FOR ALL Y's
-t_M3126<-randomForest(x=train_set[,-c(1,9)], y=as.factor(train_set[,9]),type="classification", ntree=10)
+t_M3126<-randomForest(x=train_set[,-c(1,9)], y=as.factor(train_set[,9]),type="classification", ntree=numtrees)
 Sys.time() - s
 probs_M3126_rf <- predict(t_M3126,test_set[,-c(1,9)],type="prob")
 s <- Sys.time()
 
 s <- Sys.time()
 # NEED TO ADD PREDICTIONS FOR ALL Y's
-t_M3172<-randomForest(x=train_set[,-c(1,10)], y=as.factor(train_set[,10]),type="classification", ntree=10)
+t_M3172<-randomForest(x=train_set[,-c(1,10)], y=as.factor(train_set[,10]),type="classification", ntree=numtrees)
 Sys.time() - s
 probs_M3172_rf <- predict(t_M3172,test_set[,-c(1,10)],type="prob")
 s <- Sys.time()
 
 s <- Sys.time()
 # NEED TO ADD PREDICTIONS FOR ALL Y's
-t_M3342<-randomForest(x=train_set[,-c(1,11)], y=as.factor(train_set[,11]),type="classification", ntree=10)
+t_M3342<-randomForest(x=train_set[,-c(1,11)], y=as.factor(train_set[,11]),type="classification", ntree=numtrees)
 Sys.time() - s
 probs_M3342_rf <- predict(t_M3342,test_set[,-c(1,11)],type="prob")
 s <- Sys.time()
 
 s <- Sys.time()
 # NEED TO ADD PREDICTIONS FOR ALL Y's
-t_M3437<-randomForest(x=train_set[,-c(1,12)], y=as.factor(train_set[,12]),type="classification", ntree=10)
+t_M3437<-randomForest(x=train_set[,-c(1,12)], y=as.factor(train_set[,12]),type="classification", ntree=numtrees)
 Sys.time() - s
 probs_M3437_rf <- predict(t_M3437,test_set[,-c(1,12)],type="prob")
 s <- Sys.time()
 
 s <- Sys.time()
 # NEED TO ADD PREDICTIONS FOR ALL Y's
-t_M3456<-randomForest(x=train_set[,-c(1,13)], y=as.factor(train_set[,13]),type="classification", ntree=10)
+t_M3456<-randomForest(x=train_set[,-c(1,13)], y=as.factor(train_set[,13]),type="classification", ntree=numtrees)
 Sys.time() - s
 probs_M3456_rf <- predict(t_M3456,test_set[,-c(1,13)],type="prob")
 s <- Sys.time()
 
 s <- Sys.time()
 # NEED TO ADD PREDICTIONS FOR ALL Y's
-t_M382<-randomForest(x=train_set[,-c(1,14)], y=as.factor(train_set[,14]),type="classification", ntree=10)
+t_M382<-randomForest(x=train_set[,-c(1,14)], y=as.factor(train_set[,14]),type="classification", ntree=numtrees)
 Sys.time() - s
 probs_M382_rf <- predict(t_M382,test_set[,-c(1,14)],type="prob")
 s <- Sys.time()
 
 s <- Sys.time()
 # NEED TO ADD PREDICTIONS FOR ALL Y's
-t_M3868<-randomForest(x=train_set[,-c(1,15)], y=as.factor(train_set[,15]),type="classification", ntree=10)
+t_M3868<-randomForest(x=train_set[,-c(1,15)], y=as.factor(train_set[,15]),type="classification", ntree=numtrees)
 Sys.time() - s
 probs_M3868_rf <- predict(t_M3868,test_set[,-c(1,15)],type="prob")
 s <- Sys.time()
