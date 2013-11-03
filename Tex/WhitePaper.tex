@@ -38,14 +38,6 @@
 \ac{Fill this in}
 \end{abstract}
 
-\subsection{Judging: \emph{to be removed after writing}}
-\begin{enumerate}
-\item Performance of the statistical model evaluated on a validation sample.
-\item Creativity of the candidate variables and intuition behind selected model features
-\item A written proposal, describing how your tool addressed the aforementioned ``VP questions" \ac{Need to tailor document to these questions}
-\end {enumerate}
-Teams will score up to 20 points in each category for a maximum score of 60 points, top 5 teams are semi-finalists.
-
 
 \newpage
 
@@ -112,12 +104,12 @@ Figure~\ref{fig:cluster} provides a visual of the constructed clusters.  These c
 \hline
 Cluster & Cluster Color & \# Customers & Avg. Transaction Freq & Avg. \# of ZIP &  Avg. \# of Merchant \\
 \hline
-1	& blue&14797	&465 	&33 &	39\\
-2	&blue&30261	&472 	&65	&57\\
-3	&blue&22981	&513 	&92 &	73\\
-4	&blue&9281	&574 	&3 	&70 \\
-5	&blue&16014	&721 	&118 &	92\\
-6	&blue&14670	&766 	&75 &	72\\
+1	& green& 152	&1337 	&161 &	131\\
+2	&red&845	&824 	&115	&93\\
+3	&black&2264	&510 	&67 &	58\\
+4	&pink&1894	&282 	&60 	&49 \\
+5	&blue&3907	&175 	&39 &	34\\
+6	&sky blue&4538	&121 	&23 &	21\\
 \hline
 \end{tabular}\\
 \label{table1}
@@ -136,11 +128,15 @@ Our evaluations (on high frequency customers) showed good model results.  There 
 \section{Model Use}
 Using statistical decision theory with the specified loss function an optimal strategy can be obtained for each customer.
 In particular, given the probabilities of a customer shopping at a merchant and and the specified loss function:  
-\begin{eqnarray*}
-L(\delta,C_i) &=& 3 \text {  offer suite issued with no redemption}\\
-&=& -5 * n \text{  offer suite issued with n coupons redeemed}\\
-&=& 1 \text{  no offer suite extended},
-\end{eqnarray*}
+\[
+L(\delta,C_i) = \left\{
+\begin{array}{rl}
+-3 & \mbox{offer suite issued with no redemption} \\
+5n & \mbox{offer suite issued with }  n  \mbox{ coupons redeemed} \\
+-1 & \mbox{no offer suite extended}
+\end{array}
+\right.
+\] 
 an optimal decision can be made to minimize risk.  That is, for each customer we seek to maximize the expected return:
 \begin{eqnarray}
 E(return_{issue}) = \$25 P_5 + \$20 P_4 + \$15 P_3 +\$10 P_2 +\$5 P_1 - \$3 P_0,
